@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+
+# Author: Cheng Yong Tham  
+# Created: 2024-Jan  
+# Last modified: 2024-02-05 16:38:28
+# Version: 0.0.1
+# This executable script performs the recurrent non-redundant copy of files. 
+
+help() {
+	echo """
+Cron-sync: A tool for the recurrent non-redundant copy of files. 
+
+usage: cron-sync [-s <source_directory>][-d <destination_directory>][-f <every (1-30)th minute>][-r <regex of old files for repeated copying>][-x][-c][-h]
+
+Examples:
+            Activate session: cron-sync -s /path/to/source_dir -d /path/to/destination_dir -f 15  # Copy new files every 15th min
+ Activate session with regex: cron-sync -s /path/to/source_dir -d /path/to/destination_dir -f 15 -r .csv$  # Copy new files and old files ending with '.csv' every 15th min
+           Terminate session: cron-sync -x  # Terminate current cron-sync session
+             Force terminate: cron-sync -z  # Terminate by doing 'crontab -r'. Only use if '-x' fails
+               Clean history: cron-sync -c  # This will reset the memory of all previous sessions
+                   Show help: cron-sync -h
+"""
+}
+
+# Get arguments
+while getopts s:d:f:r:xzch options;
+do
+    case "${options}" in
+        s) SOURCE=${OPTARG};;
+        d) DEST=${OPTARG};;
+        f) FREQ=${OPTARG};;
+        r) REGEX=${OPTARG};;
+        x) TERMINATE=1 ;;
+        z) FORCETERMINATE=1 ;;
+        c) CLEAN=1 ;;
+        h) help
+           exit 0
+           ;;
+        *) echo "Invalid option: -$options."
+           help
+           exit 1
+           ;;
+    esac
+done
+
+# Get script directory
+cd "$(dirname "$0")"
+SCRIPT_DIR="$(pwd)"
+if [ ${#SCRIPT_DIR} -gt 80 ]; then
+    echo "Warning: Path to cron-sync directory too long (${SCRIPT_DIR}), max allowed is 80 chars. Crontab may not be compatible."
+fi
+
+# Terminate cron-sync session
+terminate() {
+    if [ ! -f "${SCRIPT_DIR}"/tmp/orig_cron.txt ]; then
+        echo "Error: cron-sync is currently not active, nothing to terminate."
+        exit 1
+    else
+        crontab "${SCRIPT_DIR}"/tmp/orig_cron.txt
+        echo "cron-sync terminated"
+        rm "${SCRIPT_DIR}"/tmp/orig_cron.txt
+        exit 0
+    fi
+}
+
+# Clean export history
+clean() {
+    if [ -f "${SCRIPT_DIR}"/tmp/exclude-cp.txt ]; then
+        rm "${SCRIPT_DIR}"/tmp/exclude-cp.txt
+        echo "cleaned cron-sync transfer history"
+    else
+        echo "no cron-sync history to clean"
+    fi
+    exit 0
+}
+
+# Activate crontab
+setcron() {
+    if ! crontab -l > /dev/null 2>&1; then
+        if ! crontab "${SCRIPT_DIR}"/tmp/crontab.txt; then
+            echo "crontab creation error, please ensure you have the right permissions to set up a cron job."
+            exit 1
+        fi
+    fi
+    crontab -l > "${SCRIPT_DIR}"/tmp/orig_cron.txt  # Save current crontab
+    cp "${SCRIPT_DIR}"/tmp/orig_cron.txt "${SCRIPT_DIR}"/tmp/mod_cron.txt
+    echo "*/"${FREQ}" * * * * /usr/bin/flock --nonblock "${SCRIPT_DIR}"/tmp/cron-sync.lock "${SCRIPT_DIR}"/data-transfer.sh "${SOURCE}" "${DEST}" "${REGEX}"" >> "${SCRIPT_DIR}"/tmp/mod_cron.txt
+    crontab "${SCRIPT_DIR}"/tmp/mod_cron.txt
+    rm "${SCRIPT_DIR}"/tmp/mod_cron.txt
+}
+
+main() {
+    # Terminate cron-sync
+    if [ "${TERMINATE}" == 1 ]; then
+        terminate
+    fi
+    # Clean cron-sync transfer history
+    if [ "${CLEAN}" == 1 ]; then
+        clean
+    fi
+    # Check mandatory arguments
+    if [ ! "${SOURCE}" ] || [ ! "${DEST}" ] || [ ! "${FREQ}" ]; then
+        echo "Error: source -s and destination -d directories, and frequency in minutes -f must be provided." 1>&2
+        exit 1
+    else
+        SOURCE="$(realpath "${SOURCE}")"
+        DEST="$(realpath "${DEST}")"
+    fi
+    # Check input freq range
+    ARR=($(seq 1 1 30))
+    if [[ ! " ${ARR[*]} " =~ " ${FREQ} " ]]; then
+        echo "Error: -m argument needs to be between 1 and 30, inclusive." 1>&2
+        exit 1
+    fi
+    # Check if original crontab file exist
+    if [ -f "${SCRIPT_DIR}"/tmp/orig_cron.txt ]; then
+        echo "Error: cron-sync is currently active, please terminate (-x) before activating again."
+        exit 1
+    fi
+    echo "source directory: ${SOURCE}"
+    echo "destination directory: ${DEST}"
+    echo "frequency: Every ${FREQ} minutes"
+    echo "regex for repeated copying: ${REGEX}"
+    setcron
+    echo "cron-sync activated"
+    exit 0
+}
+
+main
