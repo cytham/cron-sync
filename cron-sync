@@ -2,7 +2,7 @@
 
 # Author: Cheng Yong Tham  
 # Created: 2024-Jan  
-# Last modified: 2024-02-06 12:50:19
+# Last modified: 2024-02-07 00:53:55
 # Version: 0.0.1
 
 help() {
@@ -101,7 +101,11 @@ main() {
         echo "Error: source -s and destination -d directories, and frequency in minutes -f must be provided." 1>&2
         exit 1
     else
-        SOURCE="$(realpath "${SOURCE}")/"
+        if [[ "${SOURCE}" == */ ]]; then
+            SOURCE="$(realpath "${SOURCE}")/"
+        else
+            SOURCE="$(realpath "${SOURCE}")"
+        fi
         DEST="$(realpath "${DEST}")"
     fi
     # Check input freq range
