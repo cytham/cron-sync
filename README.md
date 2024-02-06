@@ -12,7 +12,7 @@ usage: cron-sync [-s <source_directory>][-d <destination_directory>][-f <every (
 
 Examples:
             Activate session: cron-sync -s /path/to/source_dir -d /path/to/destination_dir -f 15  # Copy new files every 15th min
- Activate session with regex: cron-sync -s /path/to/source_dir -d /path/to/destination_dir -f 15 -r .csv$  # Copy new files and old files ending with '.csv' every 15th min
+     With regex of old files: cron-sync -s /path/to/source_dir -d /path/to/destination_dir -f 15 -r .csv$  # Copy new files and old files ending with '.csv' every 15th min
            Terminate session: cron-sync -x  # Terminate current cron-sync session
                Clean history: cron-sync -c  # This will reset the memory of all previous sessions
                    Show help: cron-sync -h
