@@ -29,4 +29,4 @@ chmod +x data-transfer.sh
 
 ## Troubleshooting
 
-If `cron-sync -x` fails to terminate session, simply do `crontab -r` and reinstall cron-sync.
+If `cron-sync -x` fails to terminate session, simply do `crontab -r` and reinstall cron-sync. Please note that doing this will wipe any pre-existing cron job.
