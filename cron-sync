@@ -2,19 +2,19 @@
 
 # Author: Cheng Yong Tham  
 # Created: 2024-Jan  
-# Last modified: 2024-02-05 16:38:28
+# Last modified: 2024-02-06 12:50:19
 # Version: 0.0.1
-# This executable script performs the recurrent non-redundant copy of files. 
 
 help() {
 	echo """
-Cron-sync: A tool for recurrent and non-redundant copy of files.
+cron-sync: Pseudo-realtime copying of new files
 
 usage: cron-sync [-s <source_directory>][-d <destination_directory>][-f <every (1-30)th minute>][-r <regex of old files for repeated copying>][-x][-c][-h]
 
 Examples:
             Activate session: cron-sync -s /path/to/source_dir -d /path/to/destination_dir -f 15  # Copy new files every 15th min
- Activate session with regex: cron-sync -s /path/to/source_dir -d /path/to/destination_dir -f 15 -r .csv$  # Copy new files and old files ending with '.csv' every 15th min
+                              cron-sync -s /path/to/source_dir -d /path/to/destination_dir -f 15 -r .csv$  # Copy new files and old files ending with '.csv' every 15th min
+
            Terminate session: cron-sync -x  # Terminate current cron-sync session
                Clean history: cron-sync -c  # This will reset the memory of all previous sessions
                    Show help: cron-sync -h
