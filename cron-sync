@@ -101,7 +101,7 @@ main() {
         echo "Error: source -s and destination -d directories, and frequency in minutes -f must be provided." 1>&2
         exit 1
     else
-        SOURCE="$(realpath "${SOURCE}")"
+        SOURCE="$(realpath "${SOURCE}")/"
         DEST="$(realpath "${DEST}")"
     fi
     # Check input freq range
