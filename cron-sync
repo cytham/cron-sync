@@ -57,6 +57,7 @@ terminate() {
         crontab "${SCRIPT_DIR}"/tmp/orig_cron.txt
         echo "cron-sync terminated"
         rm "${SCRIPT_DIR}"/tmp/orig_cron.txt
+        rm "${SCRIPT_DIR}"/tmp/cron-sync.lock
         exit 0
     fi
 }
