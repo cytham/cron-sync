@@ -2,18 +2,19 @@
 
 # Author: Cheng Yong Tham  
 # Created: 2024-Jan  
-# Last modified: 2024-02-07 00:53:55
-# Version: 0.0.1
+# Last modified: 2024-02-21 14:29:09
+# Version: 0.0.2
 
 help() {
 	echo """
 cron-sync: Pseudo-realtime copying of new files
 
-usage: cron-sync [-s <source_directory>][-d <destination_directory>][-f <every (1-30)th minute>][-r <regex of old files for repeated copying>][-x][-c][-h]
+usage: cron-sync [-s <source_directory>][-d <destination_directory>][-f <every (1-30)th minute>][-r <regex of old files for repeated copying>][-p <directory depth>][-x][-c][-h]
 
 Examples:
             Activate session: cron-sync -s /path/to/source_dir -d /path/to/destination_dir -f 15  # Copy new files every 15th min
                               cron-sync -s /path/to/source_dir -d /path/to/destination_dir -f 15 -r .csv$  # Copy new files and old files ending with '.csv' every 15th min
+                              cron-sync -s /path/to/source_dir -d /path/to/destination_dir -f 15 -p 2  # Copy new files every 15th min at relative directory depth of 2 (advance option for speed)
 
            Terminate session: cron-sync -x  # Terminate current cron-sync session
                Clean history: cron-sync -c  # This will reset the memory of all previous sessions
@@ -22,13 +23,14 @@ Examples:
 }
 
 # Get arguments
-while getopts s:d:f:r:xch options;
+while getopts s:d:f:r:p:xch options;
 do
     case "${options}" in
         s) SOURCE=${OPTARG};;
         d) DEST=${OPTARG};;
         f) FREQ=${OPTARG};;
         r) REGEX=${OPTARG};;
+        p) DEPTH=${OPTARG};;
         x) TERMINATE=1 ;;
         c) CLEAN=1 ;;
         h) help
@@ -48,6 +50,11 @@ if [ ${#SCRIPT_DIR} -gt 80 ]; then
     echo "Warning: Path to cron-sync directory too long (${SCRIPT_DIR}), max allowed is 80 chars. Crontab may not be compatible."
 fi
 
+# Set default directory depth as 0
+if [ -z "${DEPTH}" ]; then
+    DEPTH=0
+fi
+
 # Terminate cron-sync session
 terminate() {
     if [ ! -f "${SCRIPT_DIR}"/tmp/orig_cron.txt ]; then
@@ -57,15 +64,16 @@ terminate() {
         crontab "${SCRIPT_DIR}"/tmp/orig_cron.txt
         echo "cron-sync terminated"
         rm "${SCRIPT_DIR}"/tmp/orig_cron.txt
-        rm "${SCRIPT_DIR}"/tmp/cron-sync.lock
+        # rm "${SCRIPT_DIR}"/tmp/cron-sync.lock
         exit 0
     fi
 }
 
 # Clean export history
 clean() {
-    if [ -f "${SCRIPT_DIR}"/tmp/exclude-cp.txt ]; then
-        rm "${SCRIPT_DIR}"/tmp/exclude-cp.txt
+    if [ -f "${SCRIPT_DIR}"/tmp/*_exclude.txt ]; then
+        rm "${SCRIPT_DIR}"/tmp/*_exclude.txt
+        rm "${SCRIPT_DIR}"/tmp/*_ex_tmp.txt
         echo "cleaned cron-sync transfer history"
     else
         echo "no cron-sync history to clean"
@@ -83,7 +91,7 @@ setcron() {
     fi
     crontab -l > "${SCRIPT_DIR}"/tmp/orig_cron.txt  # Save current crontab
     cp "${SCRIPT_DIR}"/tmp/orig_cron.txt "${SCRIPT_DIR}"/tmp/mod_cron.txt
-    echo "*/"${FREQ}" * * * * /usr/bin/flock --nonblock "${SCRIPT_DIR}"/tmp/cron-sync.lock "${SCRIPT_DIR}"/data-transfer.sh "${SOURCE}" "${DEST}" "${REGEX}"" >> "${SCRIPT_DIR}"/tmp/mod_cron.txt
+    echo "*/"${FREQ}" * * * * /usr/bin/flock --nonblock "${SCRIPT_DIR}"/tmp/cron-sync.lock "${SCRIPT_DIR}"/data-transfer.sh "${SOURCE}" "${DEST}" "${DEPTH}" "${REGEX}"" >> "${SCRIPT_DIR}"/tmp/mod_cron.txt
     crontab "${SCRIPT_DIR}"/tmp/mod_cron.txt
     rm "${SCRIPT_DIR}"/tmp/mod_cron.txt
 }
@@ -124,6 +132,7 @@ main() {
     echo "destination directory: ${DEST}"
     echo "frequency: Every ${FREQ} minutes"
     echo "regex for repeated copying: ${REGEX}"
+    echo "expected subdataset depth: ${DEPTH}"
     setcron
     echo "cron-sync activated"
     exit 0
